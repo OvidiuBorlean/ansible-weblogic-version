@@ -1,0 +1,40 @@
+---
+- hosts: weblogic
+  vars: 
+    ORACLE_HOME: /home/user_folder/Oracle/Middleware/Oracle_Home/user_projects/domains/base_domain/config
+    ORACLE_OPATCH: /home/user_folder/Oracle/Middleware/Oracle_Home/OPatch/
+    REPORT_FILE: wls-report.txt
+  tasks:
+    - name: Create Report file if not exists
+      file:
+        path: "{{ REPORT_FILE }}"
+        state: touch
+      delegate_to: localhost
+ 
+    - name: Get Weblogc Version
+      shell: cat {{ ORACLE_HOME }}/config.xml | grep domain-version | awk -F ">" '{print $2}' | awk -F "<" '{print $1}'
+      register: config_ver
+
+    - name: Get OPatch
+      shell: "{{ ORACLE_OPATCH }}opatch lspatches | grep -v -i OPatch"
+      register: opatches
+  
+    - name: Get hostname
+      shell: echo $HOSTNAME
+      register: srv_hostname
+
+
+    - name: Generate Report
+      lineinfile:
+        path: "{{ REPORT_FILE }}"
+        line: "{{ item }}"
+        state: present
+      with_list:
+        - "{{ srv_hostname.stdout }} ---> {{ opatches.stdout }} ---> {{ config_ver.stdout }}" 
+      delegate_to: localhost
+      
+    - name: Add separator
+      lineinfile:
+        path: "{{ REPORT_FILE }}"
+        line: -----------------------------------------------------------------------------------------------------------------------------
+      delegate_to: localhost
